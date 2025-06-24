@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Nix
+      uses: DeterminateSystems/nix-installer-action@main
+
+    - name: Run the Magic Nix Cache
+      uses: DeterminateSystems/magic-nix-cache-action@main
+
+    - name: Check Nix flake
+      run: nix flake check
+
+    - name: Build project
+      run: nix develop -c zig build
+
+    - name: Run tests
+      run: nix develop -c zig build test
+
+    - name: Build release
+      run: nix develop -c zig build -Doptimize=ReleaseSafe
