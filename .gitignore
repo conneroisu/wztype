@@ -52,3 +52,7 @@ Mkfile.old
 dkms.conf
 
 build/
+zig-cache/
+zig-out/
+.direnv
+result
