@@ -35,7 +35,7 @@ pub fn build(b: *std.Build) void {
         .file = b.path("protocol/virtual-keyboard-unstable-v1-protocol.c"),
         .flags = &[_][]const u8{"-std=c99"},
     });
-    
+
     // Add include path for protocol headers
     lib.addIncludePath(b.path("protocol"));
 
@@ -53,7 +53,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .link_libc = true,
     });
-    
+
     // Add include path to the module for C imports
     mod.addIncludePath(b.path("protocol"));
     mod.linkSystemLibrary("wayland-client", .{});
@@ -85,7 +85,7 @@ pub fn build(b: *std.Build) void {
 
     // Add include path for protocol headers
     exe.addIncludePath(b.path("protocol"));
-    
+
     // Link the CLI executable with the wtype library and system libraries
     exe.linkLibrary(lib);
     exe.linkSystemLibrary("wayland-client");
@@ -135,10 +135,10 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    
+
     // Add include path for protocol headers
     mod_tests.addIncludePath(b.path("protocol"));
-    
+
     // Add the same system library dependencies to mod_tests
     mod_tests.linkSystemLibrary("wayland-client");
     mod_tests.linkSystemLibrary("xkbcommon");
@@ -156,10 +156,10 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    
+
     // Add include path for protocol headers
     exe_tests.addIncludePath(b.path("protocol"));
-    
+
     // Add the same dependencies to the test executable
     exe_tests.linkLibrary(lib);
     exe_tests.linkSystemLibrary("wayland-client");

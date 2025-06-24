@@ -84,7 +84,7 @@ fn parseArgs(wtype_instance: *wtype_lib.Wtype, args: [][:0]u8) !void {
                 return error.StdinPlaceholderCanOnlyAppearOnce;
             }
             use_stdin = true;
-            
+
             const cmd = wtype_lib.WtypeCommand{
                 .type = .text_stdin,
                 .data = .{ .text = .{ .key_codes = &[_]u32{}, .delay_ms = delay_ms } },
@@ -156,7 +156,7 @@ fn parseArgs(wtype_instance: *wtype_lib.Wtype, args: [][:0]u8) !void {
                 const key_code = try wtype_instance.getKeyCodeByXkb(keysym);
                 const key_codes = try wtype_instance.allocator.alloc(u32, 1);
                 key_codes[0] = key_code;
-                
+
                 cmd = wtype_lib.WtypeCommand{
                     .type = .text,
                     .data = .{ .text = .{ .key_codes = key_codes, .delay_ms = delay_ms } },
@@ -193,19 +193,19 @@ fn parseArgs(wtype_instance: *wtype_lib.Wtype, args: [][:0]u8) !void {
             i += 2;
         } else {
             // Regular text argument
-            const text = if (prefix_with_space) 
+            const text = if (prefix_with_space)
                 try std.fmt.allocPrint(wtype_instance.allocator, " {s}", .{arg})
             else
                 try wtype_instance.allocator.dupe(u8, arg);
             defer wtype_instance.allocator.free(text);
 
             const key_codes = try textToKeyCodes(wtype_instance, text);
-            
+
             const cmd = wtype_lib.WtypeCommand{
                 .type = .text,
                 .data = .{ .text = .{ .key_codes = key_codes, .delay_ms = delay_ms } },
             };
-            
+
             try wtype_instance.commands.append(cmd);
             prefix_with_space = true;
             i += 1;
@@ -218,16 +218,16 @@ fn textToKeyCodes(wtype_instance: *wtype_lib.Wtype, text: []const u8) ![]u32 {
         std.debug.print("Invalid UTF-8 in input text: {}\n", .{err});
         return error.InvalidUtf8;
     };
-    
+
     var key_codes = std.ArrayList(u32).init(wtype_instance.allocator);
     defer key_codes.deinit();
-    
+
     var iter = unicode_view.iterator();
     while (iter.nextCodepoint()) |codepoint| {
         const key_code = try wtype_instance.getKeyCodeByWchar(codepoint);
         try key_codes.append(key_code);
     }
-    
+
     return try key_codes.toOwnedSlice();
 }
 
@@ -263,7 +263,7 @@ fn parseKeysym(key_name: []const u8) u32 {
         .{ "F11", 0xffc8 },
         .{ "F12", 0xffc9 },
     });
-    
+
     return key_map.get(key_name) orelse 0;
 }
 
@@ -271,19 +271,19 @@ test "argument parsing" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    
+
     var wtype_instance = wtype_lib.Wtype.init(allocator);
     defer wtype_instance.deinit();
-    
+
     // Create test arguments without C imports
     const arg1 = try allocator.dupeZ(u8, "wtype");
     defer allocator.free(arg1);
     const arg2 = try allocator.dupeZ(u8, "hello");
     defer allocator.free(arg2);
-    
+
     const args = [_][:0]u8{ arg1, arg2 };
     try parseArgs(&wtype_instance, @constCast(&args));
-    
+
     try std.testing.expect(wtype_instance.commands.items.len == 1);
     try std.testing.expect(wtype_instance.commands.items[0].type == .text);
 }
