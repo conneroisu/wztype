@@ -54,5 +54,8 @@ dkms.conf
 build/
 zig-cache/
 zig-out/
+
+.zig-cache/
+.zig-out/
 .direnv
 result
