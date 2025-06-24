@@ -150,12 +150,6 @@ pub const Wtype = struct {
         if (self.keyboard == null) {
             return WtypeError.NoVirtualKeyboardManager;
         }
-
-        // Set up a proper keymap
-        self.setupKeymap() catch |err| {
-            std.debug.print("Keymap setup failed: {}\n", .{err});
-            return WtypeError.KeymapCreationFailed;
-        };
     }
 
     pub fn appendKeymapEntry(self: *Wtype, ch: u32, xkb: u32) !u32 {
@@ -219,6 +213,9 @@ pub const Wtype = struct {
     }
 
     pub fn runCommands(self: *Wtype) !void {
+        // Upload keymap before running commands (after all characters are processed)
+        try self.setupKeymap();
+        
         for (self.commands.items) |*cmd| {
             switch (cmd.type) {
                 .sleep => try self.runSleep(cmd),
@@ -280,17 +277,28 @@ pub const Wtype = struct {
     fn runTextStdin(self: *Wtype, cmd: *WtypeCommand) !void {
         const stdin = std.io.getStdIn().reader();
         var buffer: [4096]u8 = undefined;
+        var key_codes = std.ArrayList(u32).init(self.allocator);
+        defer key_codes.deinit();
 
+        // First, read all input and build keymap
         while (try stdin.readUntilDelimiterOrEof(buffer[0..], '\n')) |line| {
             const unicode_view = std.unicode.Utf8View.init(line) catch continue;
             var iter = unicode_view.iterator();
 
             while (iter.nextCodepoint()) |codepoint| {
                 const key_code = self.getKeyCodeByWchar(codepoint) catch continue;
-                try self.typeKeycode(key_code);
-                if (cmd.data.text.delay_ms > 0) {
-                    std.time.sleep(cmd.data.text.delay_ms * std.time.ns_per_ms);
-                }
+                try key_codes.append(key_code);
+            }
+        }
+
+        // Upload keymap with all characters
+        try self.setupKeymap();
+        
+        // Now execute all the key presses
+        for (key_codes.items) |key_code| {
+            try self.typeKeycode(key_code);
+            if (cmd.data.text.delay_ms > 0) {
+                std.time.sleep(cmd.data.text.delay_ms * std.time.ns_per_ms);
             }
         }
     }
@@ -324,34 +332,27 @@ pub const Wtype = struct {
         try writer.writeAll("xkb_keymap {\n");
 
         // Write keycodes section
-        try writer.writeAll("xkb_keycodes {\n");
-        try writer.writeAll("minimum = 8;\nmaximum = 255;\n");
+        try writer.writeAll("xkb_keycodes \"(unnamed)\" {\n");
+        try writer.print("minimum = 8;\nmaximum = {d};\n", .{self.keymap.items.len + 8 + 1});
 
         // Generate keycodes for our keymap entries
         for (self.keymap.items, 0..) |entry, i| {
-            const keycode = i + 8; // XKB keycodes start at 8
+            const keycode = i + 8 + 1; // XKB keycodes start at 8, keymap is 1-indexed
             if (entry.xkb != 0) {
-                try writer.print("<K{d}> = {d};\n", .{ i, keycode });
+                try writer.print("<K{d}> = {d};\n", .{ i + 1, keycode });
             }
         }
 
         try writer.writeAll("};\n"); // end keycodes
 
-        // Write types section (minimal)
-        try writer.writeAll("xkb_types {\n");
-        try writer.writeAll("type \"ONE_LEVEL\" {\n");
-        try writer.writeAll("modifiers= none;\n");
-        try writer.writeAll("level_name[Level1]= \"Any\";\n");
-        try writer.writeAll("};\n");
-        try writer.writeAll("};\n"); // end types
-
-        // Write compat section (minimal)
-        try writer.writeAll("xkb_compat {\n");
-        try writer.writeAll("};\n"); // end compat
+        // Write types section (use complete like C version)
+        try writer.writeAll("xkb_types \"(unnamed)\" { include \"complete\" };\n");
+        
+        // Write compat section (use complete like C version)
+        try writer.writeAll("xkb_compatibility \"(unnamed)\" { include \"complete\" };\n");
 
         // Write symbols section
-        try writer.writeAll("xkb_symbols {\n");
-        try writer.writeAll("name[group1]=\"Virtual\";\n");
+        try writer.writeAll("xkb_symbols \"(unnamed)\" {\n");
 
         // Generate symbols for our keymap entries
         for (self.keymap.items, 0..) |entry, i| {
@@ -361,7 +362,7 @@ pub const Wtype = struct {
                 const ret = c.xkb_keysym_get_name(entry.xkb, &sym_name, sym_name.len);
                 if (ret > 0) {
                     const sym_name_slice = sym_name[0..@intCast(ret)];
-                    try writer.print("key <K{d}> {{ [ {s} ] }};\n", .{ i, sym_name_slice });
+                    try writer.print("key <K{d}> {{ [ {s} ] }};\n", .{ i + 1, sym_name_slice });
                 }
             }
         }
