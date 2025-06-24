@@ -1,52 +1,49 @@
-# wtype
-xdotool type for wayland
-
-[![Packaging status](https://repology.org/badge/vertical-allrepos/wtype.svg)](https://repology.org/project/wtype/versions)
+# wztype
+wztype is a Wayland tool that allows you to simulate keyboard input like xdotool type for X11.
+This is accomplished via the virtual-keyboard Wayland protocol.
 
 ## Building
 
-```
-meson build
-ninja -C build
-sudo ninja -C build install
+```bash
+zig build
 ```
 
 ## Usage
 
-```
+```bash
 # Type unicode characters
-wtype ∇⋅∇ψ = ρ
+wztype ∇⋅∇ψ = ρ
 ```
 
 To press/release modifiers, `-M`/`-m` can be used respectively.
 
-```
+```bash
 # Press Ctrl+C
-wtype -M ctrl c -m ctrl
+wztype -M ctrl c -m ctrl
 ```
 
 To alter delay between keystrokes, `-d`.
 
-```
+```bash
 # delay of 0 when typing "foo", 120ms on "bar"
-wtype foo -d 120 bar
+wztype foo -d 120 bar
 
 # also applied on stdin
-echo everything | wtype -d 12 -
+echo everything | wztype -d 12 -
 ```
 
 To press/release a named key (as given by [xkb_keysym_get_name](https://xkbcommon.org/doc/current/group__keysyms.html)),
 `-P`/`-p` can be used.
 
-```
+```bash
 # Press and release the Left key
-wtype -P left -p left
+wztype -P left -p left
 ```
 
-Note that when wtype terminates, all the pressed keys/modifiers get released, as the compositor destroys the associated
+Note that when wztype terminates, all the pressed keys/modifiers get released, as the compositor destroys the associated
 virtual keyboard object. To help performing a more complicated sequence of key presses, `-s` can be used to insert delays into the stream of key events.
 
-```
+```bash
 # Hold the Right key for 1000ms
-wtype -P right -s 1000 -p right
+wztype -P right -s 1000 -p right
 ```
