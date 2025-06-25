@@ -1,0 +1,951 @@
+# wztype Library Usage Examples
+
+This document provides comprehensive examples of using the wztype library programmatically.
+
+## Basic Setup and Connection
+
+### Example 1: Initialize and connect to Wayland
+```zig
+const std = @import("std");
+const wtype = @import("wtype");
+
+var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+defer _ = gpa.deinit();
+const allocator = gpa.allocator();
+
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect(); // Connect to Wayland display
+```
+
+### Example 2: Simple text typing
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+try wt.addTextCommand("Hello, World!", 0);
+try wt.runCommands();
+```
+
+### Example 3: Text with delay between keystrokes
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+try wt.addTextCommand("Typing slowly...", 100); // 100ms between keystrokes
+try wt.runCommands();
+```
+
+## Unicode and Special Characters
+
+### Example 4: Unicode text support
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+try wt.addTextCommand("Hello 世界! 🌍", 0); // Unicode characters
+try wt.runCommands();
+```
+
+### Example 5: Special control characters
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+try wt.addTextCommand("Line 1\nLine 2\tTabbed", 0); // Newline and tab
+try wt.runCommands();
+```
+
+## Key Press and Release
+
+### Example 6: Single key press and release
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+const return_key = try wt.getKeyCodeByXkb(0xff0d); // XKB_KEY_Return
+
+const cmd = wtype.WtypeCommand{
+    .type = .key_press,
+    .data = .{ .single_key_code = return_key },
+};
+try wt.commands.append(cmd);
+
+const release_cmd = wtype.WtypeCommand{
+    .type = .key_release,
+    .data = .{ .single_key_code = return_key },
+};
+try wt.commands.append(release_cmd);
+
+try wt.runCommands();
+```
+
+### Example 7: Function key press
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+const f1_key = try wt.getKeyCodeByXkb(0xffbe); // XKB_KEY_F1
+
+const cmd = wtype.WtypeCommand{
+    .type = .key_press,
+    .data = .{ .single_key_code = f1_key },
+};
+try wt.commands.append(cmd);
+
+const release_cmd = wtype.WtypeCommand{
+    .type = .key_release,
+    .data = .{ .single_key_code = f1_key },
+};
+try wt.commands.append(release_cmd);
+
+try wt.runCommands();
+```
+
+## Modifier Keys
+
+### Example 8: Shift modifier for uppercase
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+// Press shift
+const shift_press = wtype.WtypeCommand{
+    .type = .mod_press,
+    .data = .{ .mod = .shift },
+};
+try wt.commands.append(shift_press);
+
+// Type text (will be uppercase)
+try wt.addTextCommand("hello", 0);
+
+// Release shift
+const shift_release = wtype.WtypeCommand{
+    .type = .mod_release,
+    .data = .{ .mod = .shift },
+};
+try wt.commands.append(shift_release);
+
+try wt.runCommands();
+```
+
+### Example 9: Ctrl+C combination
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+// Press Ctrl
+const ctrl_press = wtype.WtypeCommand{
+    .type = .mod_press,
+    .data = .{ .mod = .ctrl },
+};
+try wt.commands.append(ctrl_press);
+
+// Type 'c'
+try wt.addTextCommand("c", 0);
+
+// Release Ctrl
+const ctrl_release = wtype.WtypeCommand{
+    .type = .mod_release,
+    .data = .{ .mod = .ctrl },
+};
+try wt.commands.append(ctrl_release);
+
+try wt.runCommands();
+```
+
+### Example 10: Alt+Tab combination
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+// Press Alt
+const alt_press = wtype.WtypeCommand{
+    .type = .mod_press,
+    .data = .{ .mod = .alt },
+};
+try wt.commands.append(alt_press);
+
+// Press Tab
+const tab_key = try wt.getKeyCodeByXkb(0xff09); // XKB_KEY_Tab
+const tab_press = wtype.WtypeCommand{
+    .type = .key_press,
+    .data = .{ .single_key_code = tab_key },
+};
+try wt.commands.append(tab_press);
+
+const tab_release = wtype.WtypeCommand{
+    .type = .key_release,
+    .data = .{ .single_key_code = tab_key },
+};
+try wt.commands.append(tab_release);
+
+// Release Alt
+const alt_release = wtype.WtypeCommand{
+    .type = .mod_release,
+    .data = .{ .mod = .alt },
+};
+try wt.commands.append(alt_release);
+
+try wt.runCommands();
+```
+
+### Example 11: Multiple modifiers (Ctrl+Shift+A)
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+// Press Ctrl
+const ctrl_press = wtype.WtypeCommand{
+    .type = .mod_press,
+    .data = .{ .mod = .ctrl },
+};
+try wt.commands.append(ctrl_press);
+
+// Press Shift
+const shift_press = wtype.WtypeCommand{
+    .type = .mod_press,
+    .data = .{ .mod = .shift },
+};
+try wt.commands.append(shift_press);
+
+// Type 'a'
+try wt.addTextCommand("a", 0);
+
+// Release Shift
+const shift_release = wtype.WtypeCommand{
+    .type = .mod_release,
+    .data = .{ .mod = .shift },
+};
+try wt.commands.append(shift_release);
+
+// Release Ctrl
+const ctrl_release = wtype.WtypeCommand{
+    .type = .mod_release,
+    .data = .{ .mod = .ctrl },
+};
+try wt.commands.append(ctrl_release);
+
+try wt.runCommands();
+```
+
+## Timing Control
+
+### Example 12: Sleep between commands
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+try wt.addTextCommand("First", 0);
+
+// Sleep for 1 second
+const sleep_cmd = wtype.WtypeCommand{
+    .type = .sleep,
+    .data = .{ .sleep_ms = 1000 },
+};
+try wt.commands.append(sleep_cmd);
+
+try wt.addTextCommand("Second", 0);
+
+try wt.runCommands();
+```
+
+### Example 13: Variable delays for typing effect
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+// Fast typing
+try wt.addTextCommand("Fast typing ", 10);
+
+// Slower typing
+try wt.addTextCommand("slower typing ", 50);
+
+// Very slow typing
+try wt.addTextCommand("very slow typing", 200);
+
+try wt.runCommands();
+```
+
+## Complex Workflows
+
+### Example 14: Login form automation
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+// Type username
+try wt.addTextCommand("user@example.com", 50);
+
+// Press Tab to go to password field
+const tab_key = try wt.getKeyCodeByXkb(0xff09);
+const tab_cmd = wtype.WtypeCommand{
+    .type = .key_press,
+    .data = .{ .single_key_code = tab_key },
+};
+try wt.commands.append(tab_cmd);
+
+const tab_release = wtype.WtypeCommand{
+    .type = .key_release,
+    .data = .{ .single_key_code = tab_key },
+};
+try wt.commands.append(tab_release);
+
+// Type password
+try wt.addTextCommand("SecretPass123", 50);
+
+// Press Enter
+const enter_key = try wt.getKeyCodeByXkb(0xff0d);
+const enter_cmd = wtype.WtypeCommand{
+    .type = .key_press,
+    .data = .{ .single_key_code = enter_key },
+};
+try wt.commands.append(enter_cmd);
+
+const enter_release = wtype.WtypeCommand{
+    .type = .key_release,
+    .data = .{ .single_key_code = enter_key },
+};
+try wt.commands.append(enter_release);
+
+try wt.runCommands();
+```
+
+### Example 15: Terminal command execution
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+// Open terminal (Super+T)
+const super_press = wtype.WtypeCommand{
+    .type = .mod_press,
+    .data = .{ .mod = .logo },
+};
+try wt.commands.append(super_press);
+
+try wt.addTextCommand("t", 0);
+
+const super_release = wtype.WtypeCommand{
+    .type = .mod_release,
+    .data = .{ .mod = .logo },
+};
+try wt.commands.append(super_release);
+
+// Wait for terminal to open
+const sleep_cmd = wtype.WtypeCommand{
+    .type = .sleep,
+    .data = .{ .sleep_ms = 500 },
+};
+try wt.commands.append(sleep_cmd);
+
+// Type command
+try wt.addTextCommand("ls -la", 50);
+
+// Press Enter
+const enter_key = try wt.getKeyCodeByXkb(0xff0d);
+const enter_cmd = wtype.WtypeCommand{
+    .type = .key_press,
+    .data = .{ .single_key_code = enter_key },
+};
+try wt.commands.append(enter_cmd);
+
+const enter_release = wtype.WtypeCommand{
+    .type = .key_release,
+    .data = .{ .single_key_code = enter_key },
+};
+try wt.commands.append(enter_release);
+
+try wt.runCommands();
+```
+
+### Example 16: Select all and copy
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+// Ctrl+A (Select All)
+const ctrl_press = wtype.WtypeCommand{
+    .type = .mod_press,
+    .data = .{ .mod = .ctrl },
+};
+try wt.commands.append(ctrl_press);
+
+try wt.addTextCommand("a", 0);
+
+// Brief pause
+const sleep_cmd = wtype.WtypeCommand{
+    .type = .sleep,
+    .data = .{ .sleep_ms = 100 },
+};
+try wt.commands.append(sleep_cmd);
+
+// Ctrl+C (Copy)
+try wt.addTextCommand("c", 0);
+
+const ctrl_release = wtype.WtypeCommand{
+    .type = .mod_release,
+    .data = .{ .mod = .ctrl },
+};
+try wt.commands.append(ctrl_release);
+
+try wt.runCommands();
+```
+
+## Keymap and Character Mapping
+
+### Example 17: Custom keymap entry
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+// Add custom XKB keysym to keymap
+const custom_keycode = try wt.appendKeymapEntry(0, 0x1008ff11); // XF86AudioLowerVolume
+
+const key_cmd = wtype.WtypeCommand{
+    .type = .key_press,
+    .data = .{ .single_key_code = custom_keycode },
+};
+try wt.commands.append(key_cmd);
+
+const release_cmd = wtype.WtypeCommand{
+    .type = .key_release,
+    .data = .{ .single_key_code = custom_keycode },
+};
+try wt.commands.append(release_cmd);
+
+try wt.runCommands();
+```
+
+### Example 18: Special character handling
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+// These characters get remapped automatically:
+// \n -> Return, \t -> Tab, ESC -> Escape
+try wt.addTextCommand("Line 1\nLine 2\tColumn 2", 0);
+
+try wt.runCommands();
+```
+
+## Arrow Keys and Navigation
+
+### Example 19: Arrow key navigation
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+// Arrow keys
+const up_key = try wt.getKeyCodeByXkb(0xff52);    // XKB_KEY_Up
+const down_key = try wt.getKeyCodeByXkb(0xff54);  // XKB_KEY_Down
+const left_key = try wt.getKeyCodeByXkb(0xff51);  // XKB_KEY_Left
+const right_key = try wt.getKeyCodeByXkb(0xff53); // XKB_KEY_Right
+
+// Move cursor around
+for ([_]u32{ up_key, up_key, left_key, left_key, down_key, right_key }) |key| {
+    const press = wtype.WtypeCommand{
+        .type = .key_press,
+        .data = .{ .single_key_code = key },
+    };
+    try wt.commands.append(press);
+
+    const release = wtype.WtypeCommand{
+        .type = .key_release,
+        .data = .{ .single_key_code = key },
+    };
+    try wt.commands.append(release);
+}
+
+try wt.runCommands();
+```
+
+### Example 20: Home/End keys
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+const home_key = try wt.getKeyCodeByXkb(0xff50); // XKB_KEY_Home
+const end_key = try wt.getKeyCodeByXkb(0xff57);  // XKB_KEY_End
+
+// Press Home
+const home_press = wtype.WtypeCommand{
+    .type = .key_press,
+    .data = .{ .single_key_code = home_key },
+};
+try wt.commands.append(home_press);
+
+const home_release = wtype.WtypeCommand{
+    .type = .key_release,
+    .data = .{ .single_key_code = home_key },
+};
+try wt.commands.append(home_release);
+
+// Type some text
+try wt.addTextCommand("Beginning of line - ", 0);
+
+// Press End
+const end_press = wtype.WtypeCommand{
+    .type = .key_press,
+    .data = .{ .single_key_code = end_key },
+};
+try wt.commands.append(end_press);
+
+const end_release = wtype.WtypeCommand{
+    .type = .key_release,
+    .data = .{ .single_key_code = end_key },
+};
+try wt.commands.append(end_release);
+
+// Type more text
+try wt.addTextCommand(" - End of line", 0);
+
+try wt.runCommands();
+```
+
+## Special Keys
+
+### Example 21: Escape key
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+const esc_key = try wt.getKeyCodeByXkb(0xff1b); // XKB_KEY_Escape
+
+const esc_press = wtype.WtypeCommand{
+    .type = .key_press,
+    .data = .{ .single_key_code = esc_key },
+};
+try wt.commands.append(esc_press);
+
+const esc_release = wtype.WtypeCommand{
+    .type = .key_release,
+    .data = .{ .single_key_code = esc_key },
+};
+try wt.commands.append(esc_release);
+
+try wt.runCommands();
+```
+
+### Example 22: Page Up/Down
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+const pgup_key = try wt.getKeyCodeByXkb(0xff55);   // XKB_KEY_Page_Up
+const pgdown_key = try wt.getKeyCodeByXkb(0xff56); // XKB_KEY_Page_Down
+
+// Page Up
+const pgup_press = wtype.WtypeCommand{
+    .type = .key_press,
+    .data = .{ .single_key_code = pgup_key },
+};
+try wt.commands.append(pgup_press);
+
+const pgup_release = wtype.WtypeCommand{
+    .type = .key_release,
+    .data = .{ .single_key_code = pgup_key },
+};
+try wt.commands.append(pgup_release);
+
+// Sleep
+const sleep_cmd = wtype.WtypeCommand{
+    .type = .sleep,
+    .data = .{ .sleep_ms = 500 },
+};
+try wt.commands.append(sleep_cmd);
+
+// Page Down
+const pgdown_press = wtype.WtypeCommand{
+    .type = .key_press,
+    .data = .{ .single_key_code = pgdown_key },
+};
+try wt.commands.append(pgdown_press);
+
+const pgdown_release = wtype.WtypeCommand{
+    .type = .key_release,
+    .data = .{ .single_key_code = pgdown_key },
+};
+try wt.commands.append(pgdown_release);
+
+try wt.runCommands();
+```
+
+### Example 23: Delete and Backspace
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+const backspace_key = try wt.getKeyCodeByXkb(0xff08); // XKB_KEY_BackSpace
+const delete_key = try wt.getKeyCodeByXkb(0xffff);    // XKB_KEY_Delete
+
+// Type text
+try wt.addTextCommand("Hello World", 0);
+
+// Backspace 5 times
+var i: u32 = 0;
+while (i < 5) : (i += 1) {
+    const bs_press = wtype.WtypeCommand{
+        .type = .key_press,
+        .data = .{ .single_key_code = backspace_key },
+    };
+    try wt.commands.append(bs_press);
+
+    const bs_release = wtype.WtypeCommand{
+        .type = .key_release,
+        .data = .{ .single_key_code = backspace_key },
+    };
+    try wt.commands.append(bs_release);
+}
+
+try wt.runCommands();
+```
+
+## Modifier Name Parsing
+
+### Example 24: Case-insensitive modifier parsing
+```zig
+// All of these return the same modifier
+const mod1 = wtype.Wtype.nameToMod("shift");  // .shift
+const mod2 = wtype.Wtype.nameToMod("SHIFT");  // .shift
+const mod3 = wtype.Wtype.nameToMod("Shift");  // .shift
+
+const mod4 = wtype.Wtype.nameToMod("ctrl");   // .ctrl
+const mod5 = wtype.Wtype.nameToMod("CTRL");   // .ctrl
+
+const mod6 = wtype.Wtype.nameToMod("win");    // .logo
+const mod7 = wtype.Wtype.nameToMod("logo");   // .logo
+
+const mod8 = wtype.Wtype.nameToMod("invalid"); // .none
+```
+
+## Complex Text Processing
+
+### Example 25: Processing formatted text
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+const formatted_text =
+    \\Dear User,
+    \\
+    \\    This is an indented paragraph with proper formatting.
+    \\    It includes multiple lines and special characters: @#$%
+    \\
+    \\Best regards,
+    \\The wztype Library
+;
+
+try wt.addTextCommand(formatted_text, 20); // 20ms delay for readability
+try wt.runCommands();
+```
+
+### Example 26: Code snippet typing
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+const code_snippet =
+    \\fn main() !void {
+    \\    const std = @import("std");
+    \\    std.debug.print("Hello, {s}!\n", .{"World"});
+    \\}
+;
+
+try wt.addTextCommand(code_snippet, 30);
+try wt.runCommands();
+```
+
+## Media Keys
+
+### Example 27: Media control keys
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+// Media keys
+const play_pause = try wt.getKeyCodeByXkb(0x1008ff14); // XF86AudioPlay
+const next_track = try wt.getKeyCodeByXkb(0x1008ff17); // XF86AudioNext
+const prev_track = try wt.getKeyCodeByXkb(0x1008ff16); // XF86AudioPrev
+
+// Play/Pause
+const play_press = wtype.WtypeCommand{
+    .type = .key_press,
+    .data = .{ .single_key_code = play_pause },
+};
+try wt.commands.append(play_press);
+
+const play_release = wtype.WtypeCommand{
+    .type = .key_release,
+    .data = .{ .single_key_code = play_pause },
+};
+try wt.commands.append(play_release);
+
+try wt.runCommands();
+```
+
+## Window Management
+
+### Example 28: Alt+F4 to close window
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+const alt_press = wtype.WtypeCommand{
+    .type = .mod_press,
+    .data = .{ .mod = .alt },
+};
+try wt.commands.append(alt_press);
+
+const f4_key = try wt.getKeyCodeByXkb(0xffc1); // XKB_KEY_F4
+const f4_press = wtype.WtypeCommand{
+    .type = .key_press,
+    .data = .{ .single_key_code = f4_key },
+};
+try wt.commands.append(f4_press);
+
+const f4_release = wtype.WtypeCommand{
+    .type = .key_release,
+    .data = .{ .single_key_code = f4_key },
+};
+try wt.commands.append(f4_release);
+
+const alt_release = wtype.WtypeCommand{
+    .type = .mod_release,
+    .data = .{ .mod = .alt },
+};
+try wt.commands.append(alt_release);
+
+try wt.runCommands();
+```
+
+## Caps Lock
+
+### Example 29: Toggle Caps Lock
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+// Press Caps Lock
+const caps_press = wtype.WtypeCommand{
+    .type = .mod_press,
+    .data = .{ .mod = .capslock },
+};
+try wt.commands.append(caps_press);
+
+// Type text (will be in caps)
+try wt.addTextCommand("this will be uppercase", 0);
+
+// Release Caps Lock
+const caps_release = wtype.WtypeCommand{
+    .type = .mod_release,
+    .data = .{ .mod = .capslock },
+};
+try wt.commands.append(caps_release);
+
+// Type more text (normal case)
+try wt.addTextCommand(" and this will be lowercase", 0);
+
+try wt.runCommands();
+```
+
+## Error Handling
+
+### Example 30: Complete error handling example
+```zig
+const std = @import("std");
+const wtype = @import("wtype");
+
+pub fn typeWithErrorHandling(allocator: std.mem.Allocator, text: []const u8) !void {
+    var wt = wtype.Wtype.init(allocator);
+    defer wt.deinit();
+
+    // Handle connection errors
+    wt.connect() catch |err| {
+        switch (err) {
+            wtype.WtypeError.WaylandConnectionFailed => {
+                std.debug.print("Failed to connect to Wayland display\n", .{});
+                return err;
+            },
+            wtype.WtypeError.NoSeatFound => {
+                std.debug.print("No input seat found\n", .{});
+                return err;
+            },
+            wtype.WtypeError.NoVirtualKeyboardManager => {
+                std.debug.print("Virtual keyboard protocol not supported\n", .{});
+                return err;
+            },
+            else => return err,
+        }
+    };
+
+    // Add commands with error handling
+    wt.addTextCommand(text, 0) catch |err| {
+        std.debug.print("Failed to add text command: {}\n", .{err});
+        return err;
+    };
+
+    // Run commands with error handling
+    wt.runCommands() catch |err| {
+        switch (err) {
+            wtype.WtypeError.KeymapCreationFailed => {
+                std.debug.print("Failed to create keymap\n", .{});
+                return err;
+            },
+            else => return err,
+        }
+    };
+}
+```
+
+### Example 31: Multi-language input
+```zig
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+// Type text in multiple languages
+const multilang_text = 
+    "English: Hello World\n" ++
+    "Spanish: ¡Hola Mundo!\n" ++
+    "French: Bonjour le monde\n" ++
+    "German: Hallo Welt\n" ++
+    "Japanese: こんにちは世界\n" ++
+    "Chinese: 你好世界\n" ++
+    "Russian: Привет мир\n" ++
+    "Arabic: مرحبا بالعالم\n" ++
+    "Emoji: 👋🌍";
+
+try wt.addTextCommand(multilang_text, 50);
+try wt.runCommands();
+```
+
+### Example 32: Programmatic macro recording
+```zig
+const MacroRecorder = struct {
+    wtype: *wtype.Wtype,
+    
+    pub fn recordSelectAll(self: *MacroRecorder) !void {
+        // Ctrl+A
+        const ctrl_press = wtype.WtypeCommand{
+            .type = .mod_press,
+            .data = .{ .mod = .ctrl },
+        };
+        try self.wtype.commands.append(ctrl_press);
+        
+        try self.wtype.addTextCommand("a", 0);
+        
+        const ctrl_release = wtype.WtypeCommand{
+            .type = .mod_release,
+            .data = .{ .mod = .ctrl },
+        };
+        try self.wtype.commands.append(ctrl_release);
+    }
+    
+    pub fn recordCopy(self: *MacroRecorder) !void {
+        // Ctrl+C
+        const ctrl_press = wtype.WtypeCommand{
+            .type = .mod_press,
+            .data = .{ .mod = .ctrl },
+        };
+        try self.wtype.commands.append(ctrl_press);
+        
+        try self.wtype.addTextCommand("c", 0);
+        
+        const ctrl_release = wtype.WtypeCommand{
+            .type = .mod_release,
+            .data = .{ .mod = .ctrl },
+        };
+        try self.wtype.commands.append(ctrl_release);
+    }
+    
+    pub fn recordPaste(self: *MacroRecorder) !void {
+        // Ctrl+V
+        const ctrl_press = wtype.WtypeCommand{
+            .type = .mod_press,
+            .data = .{ .mod = .ctrl },
+        };
+        try self.wtype.commands.append(ctrl_press);
+        
+        try self.wtype.addTextCommand("v", 0);
+        
+        const ctrl_release = wtype.WtypeCommand{
+            .type = .mod_release,
+            .data = .{ .mod = .ctrl },
+        };
+        try self.wtype.commands.append(ctrl_release);
+    }
+};
+
+// Usage
+var wt = wtype.Wtype.init(allocator);
+defer wt.deinit();
+
+try wt.connect();
+
+var macro = MacroRecorder{ .wtype = &wt };
+try macro.recordSelectAll();
+try macro.recordCopy();
+try macro.recordPaste();
+
+try wt.runCommands();
+```
+
+## Notes
+
+- All examples assume proper imports and allocator setup as shown in Example 1
+- The library handles Unicode properly through Zig's built-in Unicode support
+- Keycodes are 1-based indices into the dynamic keymap
+- The virtual keyboard protocol requires a Wayland compositor with support for `zwp_virtual_keyboard_unstable_v1`
+- Always call `deinit()` to properly clean up resources
+- Commands are executed in the order they are added to the queue
+- Modifier state is maintained internally and sent with each keyboard event
