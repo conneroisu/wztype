@@ -14,6 +14,68 @@ wztype (or "wtype") is a **Wayland virtual keyboard input tool** that simulates 
 
 ## 📦 Installation
 
+### Using Nix (Recommended)
+
+wztype provides a comprehensive Nix development environment with all dependencies pre-configured:
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/wztype.git
+cd wztype
+
+# Enter the Nix development shell (automatically installs all dependencies)
+nix develop
+
+# Build the project
+zig build
+
+# Run wztype with arguments
+zig build run -- "Hello Nix!"
+
+# Run tests
+zig build test
+
+# Format code (Zig + Nix files)
+nix fmt
+```
+
+#### Nix Development Environment Features
+
+The Nix flake provides:
+- **Zig master** - Latest Zig compiler with ZLS language server
+- **Wayland dependencies** - Pre-configured `wayland-client`, `libxkbcommon`, `wayland-protocols`
+- **Protocol generation** - `wayland-scanner` for generating protocol bindings
+- **Development tools** - Formatters (alejandra, zig), linters (nixd, statix, deadnix)
+- **Cross-platform support** - Works on Linux, macOS (x86_64, aarch64)
+
+#### Direct Nix Installation
+
+For system-wide installation using Nix:
+
+```bash
+# Install directly from the flake
+nix profile install .
+
+# Or run without installing
+nix run . -- "Hello World"
+```
+
+#### Using as a Nix Dependency
+
+Add wztype to your `flake.nix` inputs:
+
+```nix
+{
+  inputs = {
+    wztype.url = "github:your-username/wztype";
+  };
+  
+  outputs = { self, nixpkgs, wztype }: {
+    # Use wztype.packages.${system}.default in your configuration
+  };
+}
+```
+
 ### Building from Source (Zig)
 
 ```bash
@@ -28,25 +90,14 @@ zig build
 sudo cp zig-out/bin/wtype /usr/local/bin/
 ```
 
-### Building with Nix
-
-```bash
-# Development environment
-nix develop
-
-# Build in Nix environment  
-zig build
-
-# Format code
-nix fmt
-```
-
 ### System Requirements
 
 - Wayland compositor with virtual keyboard support
 - `libwayland-client` 
 - `libxkbcommon`
 - Zig 0.11+ (for building from source)
+
+**Note:** When using Nix, all dependencies are automatically provided by the development environment.
 
 ## 📖 Usage
 
@@ -187,7 +238,34 @@ wztype -k Escape -s 100 -k colon "wq" -k Return  # Vim save and quit
 
 ### Building & Testing
 
+**With Nix (Recommended):**
 ```bash
+# Enter development environment
+nix develop
+
+# Build the project
+zig build
+
+# Run tests with all dependencies available
+zig build test
+
+# Run with arguments
+zig build run -- "test text"
+
+# Format all code (Zig + Nix)
+nix fmt
+
+# Check Nix configuration
+nix flake check
+```
+
+**Without Nix:**
+```bash
+# Ensure system dependencies are installed:
+# - libwayland-client-dev
+# - libxkbcommon-dev
+# - wayland-protocols
+
 # Build
 zig build
 
@@ -196,24 +274,117 @@ zig build test
 
 # Run with arguments
 zig build run -- "test text"
-
-# Development with Nix
-nix develop
 ```
 
 ### Library Usage
 
-wztype provides a Zig library interface for integration into other applications:
+wztype provides a Zig library interface for integration into other applications.
+
+#### Using wztype as a Zig Module
+
+In your `build.zig`:
 
 ```zig
+const std = @import("std");
+
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
+    // Add wztype as a dependency
+    const wztype = b.dependency("wztype", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const exe = b.addExecutable(.{
+        .name = "your-app",
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Import the wztype module
+    exe.root_module.addImport("wtype", wztype.module("wtype"));
+    
+    // wztype handles linking system libraries automatically
+    b.installArtifact(exe);
+}
+```
+
+Then in your `build.zig.zon`:
+
+```zig
+.{
+    .name = "your-app",
+    .version = "0.1.0",
+    .dependencies = .{
+        .wztype = .{
+            .url = "https://github.com/your-username/wztype/archive/main.tar.gz",
+            .hash = "...", // Use `zig fetch` to get the hash
+        },
+    },
+}
+```
+
+#### Using wztype in Your Code
+
+```zig
+const std = @import("std");
 const wtype = @import("wtype");
 
-var instance = wtype.Wtype.init(allocator);
-defer instance.deinit();
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
 
-try instance.connect();
-// Add commands, then execute
-try instance.runCommands();
+    var instance = wtype.Wtype.init(gpa.allocator());
+    defer instance.deinit();
+
+    try instance.connect();
+    
+    // Type text
+    try instance.addTextCommand("Hello from Zig!");
+    
+    // Press keys with modifiers
+    try instance.addModifierPress(.ctrl);
+    try instance.addKeyCommand(.c);
+    try instance.addModifierRelease(.ctrl);
+    
+    // Execute all commands
+    try instance.runCommands();
+}
+```
+
+#### Using wztype with Nix in Your Project
+
+Create a `flake.nix` for your project:
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    wztype.url = "github:your-username/wztype";
+  };
+
+  outputs = { self, nixpkgs, wztype }: let
+    forAllSystems = f: nixpkgs.lib.genAttrs [
+      "x86_64-linux" "aarch64-darwin" "x86_64-darwin"
+    ] f;
+  in {
+    devShells = forAllSystems (system: let
+      pkgs = nixpkgs.legacyPackages.${system};
+    in pkgs.mkShell {
+      buildInputs = [
+        pkgs.zig
+        pkgs.zls
+        # Wayland dependencies (automatically handled by wztype)
+        pkgs.wayland
+        pkgs.libxkbcommon
+        wztype.packages.${system}.default
+      ];
+    });
+  };
+}
 ```
 
 ## 🐛 Troubleshooting
@@ -236,11 +407,58 @@ try instance.runCommands();
 - Ensure your terminal/application supports Unicode
 - Check locale settings (`locale` command)
 
+### Nix-Specific Troubleshooting
+
+**Nix flake issues:**
+```bash
+# Update flake inputs
+nix flake update
+
+# Check flake configuration
+nix flake check
+
+# Clean build cache
+nix store gc
+```
+
+**Missing Wayland dependencies in Nix:**
+```bash
+# Verify dependencies are available in the shell
+nix develop -c pkg-config --list-all | grep -E "wayland|xkb"
+
+# Check library paths
+nix develop -c echo $PKG_CONFIG_PATH
+```
+
+**Cross-compilation issues:**
+```bash
+# Build for specific target
+nix develop -c zig build -Dtarget=x86_64-linux
+
+# Check available targets
+nix develop -c zig targets
+```
+
+**Library linking problems:**
+```bash
+# Verify system libraries are found
+nix develop -c pkg-config --libs wayland-client xkbcommon
+
+# Check if libraries are in the expected location
+ls $(nix develop -c pkg-config --variable=libdir wayland-client)
+```
+
 ### Debug Mode
 
 ```bash
 # Enable debug output (if compiled with debug info)
 WAYLAND_DEBUG=1 wztype "test"
+
+# With Nix development shell
+nix develop -c env WAYLAND_DEBUG=1 zig build run -- "test"
+
+# Debug Zig build process
+nix develop -c zig build --verbose
 ```
 
 ## ⚖️ License
