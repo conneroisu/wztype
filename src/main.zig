@@ -6,9 +6,9 @@ const wtype_lib = @import("wtype");
 
 /// Help text displayed when user runs wtype --help or encounters argument errors
 const usage_text =
-    \\Usage: wtype [OPTIONS] [TEXT]...
+    \\Usage: wztype [OPTIONS] [TEXT]...
     \\
-    \\wtype types text on a Wayland compositor using the virtual keyboard protocol.
+    \\wztype types text on a Wayland compositor using the virtual keyboard protocol.
     \\
     \\Arguments:
     \\  TEXT                Text to type
@@ -26,10 +26,10 @@ const usage_text =
     \\  -h, --help                   Show this help message
     \\
     \\Examples:
-    \\  wtype "Hello World"
-    \\  wtype -M shift hello -m shift
-    \\  wtype -k Return
-    \\  echo "test" | wtype -
+    \\  wztype "Hello World"
+    \\  wztype -M shift hello -m shift
+    \\  wztype -k Return
+    \\  echo "test" | wztype -
     \\
 ;
 
@@ -134,7 +134,7 @@ fn parseArgs(wtype_instance: *wtype_lib.Wtype, args: [][:0]u8) !void {
                     .type = .mod_press,
                     .data = .{ .mod = mod },
                 };
-            // Release modifier key (e.g., -m shift)
+                // Release modifier key (e.g., -m shift)
             } else if (std.mem.eql(u8, arg, "-m") or std.mem.eql(u8, arg, "--modifier-release")) {
                 const mod = wtype_lib.Wtype.nameToMod(next_arg);
                 if (mod == .none) {
@@ -145,7 +145,7 @@ fn parseArgs(wtype_instance: *wtype_lib.Wtype, args: [][:0]u8) !void {
                     .type = .mod_release,
                     .data = .{ .mod = mod },
                 };
-            // Sleep for specified milliseconds (e.g., -s 1000)
+                // Sleep for specified milliseconds (e.g., -s 1000)
             } else if (std.mem.eql(u8, arg, "-s") or std.mem.eql(u8, arg, "--sleep")) {
                 const sleep_ms = std.fmt.parseUnsigned(u32, next_arg, 10) catch {
                     std.debug.print("Invalid sleep time '{s}'. Must be a positive integer (milliseconds)\n", .{next_arg});
@@ -159,7 +159,7 @@ fn parseArgs(wtype_instance: *wtype_lib.Wtype, args: [][:0]u8) !void {
                     .type = .sleep,
                     .data = .{ .sleep_ms = sleep_ms },
                 };
-            // Set delay between keystrokes (e.g., -d 100)
+                // Set delay between keystrokes (e.g., -d 100)
             } else if (std.mem.eql(u8, arg, "-d") or std.mem.eql(u8, arg, "--delay")) {
                 delay_ms = std.fmt.parseUnsigned(u32, next_arg, 10) catch {
                     std.debug.print("Invalid delay time '{s}'. Must be a positive integer (milliseconds)\n", .{next_arg});
@@ -171,7 +171,7 @@ fn parseArgs(wtype_instance: *wtype_lib.Wtype, args: [][:0]u8) !void {
                 }
                 i += 2; // Skip both the option and its argument
                 continue; // Don't create a command, just set the delay for future text
-            // Press and release a named key (e.g., -k Return)
+                // Press and release a named key (e.g., -k Return)
             } else if (std.mem.eql(u8, arg, "-k") or std.mem.eql(u8, arg, "--key")) {
                 const keysym = parseKeysym(next_arg);
                 if (keysym == 0) {
@@ -187,7 +187,7 @@ fn parseArgs(wtype_instance: *wtype_lib.Wtype, args: [][:0]u8) !void {
                     .type = .text,
                     .data = .{ .text = .{ .key_codes = key_codes, .delay_ms = delay_ms } },
                 };
-            // Press a key without releasing (e.g., -P F1)
+                // Press a key without releasing (e.g., -P F1)
             } else if (std.mem.eql(u8, arg, "-P") or std.mem.eql(u8, arg, "--key-press")) {
                 const keysym = parseKeysym(next_arg);
                 if (keysym == 0) {
@@ -199,7 +199,7 @@ fn parseArgs(wtype_instance: *wtype_lib.Wtype, args: [][:0]u8) !void {
                     .type = .key_press,
                     .data = .{ .single_key_code = key_code },
                 };
-            // Release a previously pressed key (e.g., -p F1)
+                // Release a previously pressed key (e.g., -p F1)
             } else if (std.mem.eql(u8, arg, "-p") or std.mem.eql(u8, arg, "--key-release")) {
                 const keysym = parseKeysym(next_arg);
                 if (keysym == 0) {
@@ -211,7 +211,7 @@ fn parseArgs(wtype_instance: *wtype_lib.Wtype, args: [][:0]u8) !void {
                     .type = .key_release,
                     .data = .{ .single_key_code = key_code },
                 };
-            // Unknown option
+                // Unknown option
             } else {
                 std.debug.print("Unknown option '{s}'. Use --help for usage information.\n", .{arg});
                 std.process.exit(1);
@@ -325,9 +325,9 @@ test "argument parsing" {
     defer wtype_instance.deinit();
 
     // Create test arguments (program name + text argument)
-    const arg1 = try allocator.dupeZ(u8, "wtype");  // Program name
+    const arg1 = try allocator.dupeZ(u8, "wtype"); // Program name
     defer allocator.free(arg1);
-    const arg2 = try allocator.dupeZ(u8, "hello");  // Text to type
+    const arg2 = try allocator.dupeZ(u8, "hello"); // Text to type
     defer allocator.free(arg2);
 
     const args = [_][:0]u8{ arg1, arg2 };
